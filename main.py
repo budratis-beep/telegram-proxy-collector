@@ -54,8 +54,8 @@ BLOCKED = [
 ]
 
 # ─────────────────────────── DPI DETECTOR ───────────────────────
-# Скачай DPI Detector v3.3.0 и положи main.py сюда:
-DPI_PATH = Path("lib/dpi-detector/main.py")
+# https://github.com/kort0881/telegram-proxy-collector/blob/main/lib/dpi-detector
+DPI_PATH = Path("lib/dpi-detector")
 
 async def dpi_check(proxy_host: str, proxy_port: int) -> bool:
     """
