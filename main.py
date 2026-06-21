@@ -28,7 +28,7 @@ except ImportError:
 API_ID   = os.environ.get("MTPROXY_API_ID")
 API_HASH = os.environ.get("MTPROXY_API_HASH")
 
-# ---------- MTProto источники (старые + ваши новые) ----------
+# ---------- MTProto источники ----------
 SOURCES = [
     "https://raw.githubusercontent.com/SoliSpirit/mtproto/master/all_proxies.txt",
     "https://raw.githubusercontent.com/Grim1313/mtproto-for-telegram/refs/heads/master/all_proxies.txt",
@@ -47,7 +47,6 @@ SOURCES = [
     "https://vpnoverview.com/privacy/anonymous-browsing/free-proxy-servers",
     "https://proxylist.geonode.com/api/proxy-list?limit=300&page=1&sort_by=lastChecked&sort_type=desc&protocols=http,https",
     "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=10000&country=all&ssl=all&anonymity=all",
-    # ----- ваши новые источники -----
     "https://raw.githubusercontent.com/V2RAYCONFIGSPOOL/TELEGRAM_PROXY_SUB/refs/heads/main/telegram_proxy_no1.txt",
     "https://raw.githubusercontent.com/V2RAYCONFIGSPOOL/TELEGRAM_PROXY_SUB/refs/heads/main/telegram_proxy_no2.txt",
     "https://raw.githubusercontent.com/V2RAYCONFIGSPOOL/TELEGRAM_PROXY_SUB/refs/heads/main/telegram_proxy_no3.txt",
@@ -75,7 +74,7 @@ SOURCES = [
     "https://raw.githubusercontent.com/blog1703/tgonline/refs/heads/main/proxies.txt",
 ]
 
-# ---------- SOCKS5 источники (все старые + новые) ----------
+# ---------- SOCKS5 источники (включая запрошенные) ----------
 SOCKS_SOURCES = [
     "https://raw.githubusercontent.com/hookzof/socks5_list/master/proxy.txt",
     "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=socks5&timeout=5000&country=all",
@@ -85,8 +84,9 @@ SOCKS_SOURCES = [
     "https://gist.githubusercontent.com/December000/fd23d2530ffc29264297a5e687a79ecd/raw/all.yaml",
     "https://raw.githubusercontent.com/CB-X2-Jun/proxy-lists/main/proxy.txt",
     "https://raw.githubusercontent.com/CB-X2-Jun/proxy-lists/main/public/proxies.json",
-    # ---- добавленная ссылка ----
+    # ---- добавлены ссылки ProxyScrape ----
     "https://raw.githubusercontent.com/ProxyScrape/free-proxy-list/refs/heads/main/proxies/all/data.txt",
+    "https://raw.githubusercontent.com/ProxyScrape/free-proxy-list/refs/heads/main/proxies/protocols/socks5/data.txt",
 ]
 
 TIMEOUT = 2.0
