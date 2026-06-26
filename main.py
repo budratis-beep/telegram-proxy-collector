@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# MTProto & SOCKS5 Proxy Collector v3.6 (Ultra Light)
+# MTProto & SOCKS5 Proxy Collector v3.7 (Lite with blacklist)
 
 import requests
 import re
 import socket
-import ssl
 import concurrent.futures
 import time
 from datetime import datetime, timezone
@@ -19,7 +18,7 @@ from telethon.sessions import MemorySession
 
 try:
     from telethon import TelegramClient
-    from telethon.errors import FloodWaitError, RPCError
+    from telethon.errors import FloodWaitError
     TELETHON_AVAILABLE = True
 except ImportError:
     TELETHON_AVAILABLE = False
@@ -28,7 +27,7 @@ except ImportError:
 API_ID   = os.environ.get("MTPROXY_API_ID")
 API_HASH = os.environ.get("MTPROXY_API_HASH")
 
-MAX_SOCKS5_TO_CHECK = 10000
+MAX_SOCKS5_TO_CHECK = 20000
 
 # ── источники (те же) ────────────────────────────────────────────────────────
 SOURCES = [
@@ -90,13 +89,20 @@ TIMEOUT = 2.0  # TCP fallback
 RU_DOMAINS = ['.ru', 'yandex', 'vk.com', 'mail.ru', 'ok.ru', 'dzen', 'rutube', 'sber',
               'tinkoff', 'vtb', 'gosuslugi', 'nalog', 'mos.ru', 'ozon', 'wildberries',
               'avito', 'kinopoisk', 'mts', 'beeline']
-BLOCKED = []   # не блокируем ничего
+# Чёрный список – оставляем, чтобы не брать прокси с маскировкой под заблокированные ресурсы
+BLOCKED = ['instagram', 'facebook', 'twitter', 'bbc', 'meduza', 'linkedin', 'torproject']
 
 def _valid_port(p): return 1 <= int(p) <= 65535
-def _is_blocked(secret, domain): return len(secret) < 16
-def _detect_region(domain): return 'ru' if domain and any(m in domain for m in RU_DOMAINS) else 'eu'
+def _is_blocked(secret, domain):
+    # Отбрасываем слишком короткие секреты и прокси с запрещёнными доменами
+    return len(secret) < 16 or (domain and any(b in domain for b in BLOCKED))
+def _detect_region(domain):
+    return 'ru' if domain and any(m in domain for m in RU_DOMAINS) else 'eu'
 
 def _prepare_secret(s):
+    # Исправлено: если пришло bytes – преобразуем в строку
+    if isinstance(s, bytes):
+        s = s.decode('utf-8')
     s = s.strip().replace('-', '+').replace('_', '/')
     if all(c in '0123456789abcdefABCDEF' for c in s):
         return bytes.fromhex(s)
@@ -188,8 +194,8 @@ def check_socks5_fast(host, port, timeout=3.0):
     except:
         return False
 
-# ── МАКСИМАЛЬНО ЛЁГКАЯ ПРОВЕРКА MTProto (только connect, без get_config) ──
-async def check_mtproto(p, timeout_sec=25.0):
+# ── ЛЁГКАЯ ПРОВЕРКА MTProto (только connect, без get_config) ──────────────
+async def check_mtproto(p, timeout_sec=20.0):
     _, host, port, secret = p
     domain = decode_domain(secret)
     if _is_blocked(secret, domain):
@@ -213,7 +219,7 @@ async def check_mtproto(p, timeout_sec=25.0):
     try:
         start = time.time()
         await asyncio.wait_for(client.connect(), timeout=timeout_sec)
-        # Если подключились — прокси рабочий (даже без get_config)
+        # Подключились – считаем рабочим
         ping = round(time.time() - start, 3)
         return {
             'type': 'mtproto', 'host': host, 'port': port, 'secret': secret,
@@ -222,11 +228,7 @@ async def check_mtproto(p, timeout_sec=25.0):
             'domain': domain or '', 'method': 'Telethon_OK',
             'probe_resistant': False,
         }
-    except Exception as e:
-        # Выводим ошибку для отладки (только первую, чтобы не засорять)
-        if not hasattr(check_mtproto, '_logged'):
-            check_mtproto._logged = True
-            print(f"  Пример ошибки MTProto для {host}:{port} — {type(e).__name__}: {str(e)[:60]}")
+    except:
         return None
     finally:
         try:
@@ -313,7 +315,7 @@ async def main_async(args):
     if args.api_id: API_ID = args.api_id
     if args.api_hash: API_HASH = args.api_hash
     start = time.time()
-    print('🚀 MTProxy Collector v3.6 (Ultra Light)')
+    print('🚀 MTProxy Collector v3.7 (Lite with blacklist)')
     print('=' * 48)
     os.makedirs(args.output_dir, exist_ok=True)
 
@@ -445,7 +447,7 @@ async def main_async(args):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--timeout', type=float, default=2.0, help='TCP таймаут для fallback')
-    p.add_argument('--timeout-mt', type=float, default=25.0, help='Таймаут для MTProto (сек)')
+    p.add_argument('--timeout-mt', type=float, default=20.0, help='Таймаут для MTProto (сек)')
     p.add_argument('--timeout-socks', type=float, default=3.0, help='Таймаут для SOCKS5 TCP')
     p.add_argument('--workers', type=int, default=200, help='Воркеры для MTProto')
     p.add_argument('--workers-socks', type=int, default=300, help='Воркеры для SOCKS5')
