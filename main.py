@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# MTProto & SOCKS5 Proxy Collector v3.8.3 (Fixed counters + secret parsing)
+# MTProto & SOCKS5 Proxy Collector v3.8.3 (Final stable)
 
 import requests
 import re
@@ -99,22 +99,25 @@ def _detect_region(domain):
     return 'ru' if domain and any(m in domain for m in RU_DOMAINS) else 'eu'
 
 def _prepare_secret(s):
-    if isinstance(s, bytes):
+    # Приводим к строке (если bytes или bytearray)
+    if isinstance(s, (bytes, bytearray)):
         try:
             s = s.decode('utf-8')
         except UnicodeDecodeError:
             return None
+    if not isinstance(s, str):
+        return None
     s = s.strip().replace('-', '+').replace('_', '/')
-    # Hex-строка
-    if all(c in '0123456789abcdefABCDEF' for c in s):
-        if len(s) % 2 != 0:  # нечётная длина hex — невалид
+    # Проверка на hex-строку
+    if re.fullmatch(r'[0-9a-fA-F]+', s):
+        if len(s) % 2 != 0:
             return None
         try:
             return bytes.fromhex(s)
         except ValueError:
             return None
-    # Base64
-    missing = (4 - len(s) % 4) % 4  # исправленный паддинг
+    # Иначе base64
+    missing = (4 - len(s) % 4) % 4
     s += '=' * missing
     try:
         return base64.b64decode(s)
@@ -238,6 +241,8 @@ async def check_mtproto(p, timeout_sec=30.0):
     try:
         start = time.time()
         await asyncio.wait_for(client.connect(), timeout=timeout_sec)
+        # Реальный запрос к Telegram — если доходит, прокси рабочий
+        await asyncio.wait_for(client.get_me(), timeout=timeout_sec)
         ping = round(time.time() - start, 3)
         return {
             'type': 'mtproto', 'host': host, 'port': port, 'secret': secret,
@@ -247,16 +252,20 @@ async def check_mtproto(p, timeout_sec=30.0):
             'probe_resistant': False,
         }
     except asyncio.TimeoutError:
-        if not DEBUG_PRINTED:
-            DEBUG_PRINTED = True
-            print(f"⚠️ Таймаут для {host}:{port} (>{timeout_sec}с)")
         return None
     except FloodWaitError as e:
         print(f"⚠️ FloodWait для {host}:{port} – {e.seconds}с")
         return None
-    except RPCError as e:
-        print(f"⚠️ RPC ошибка для {host}:{port} – {e}")
-        return None
+    except RPCError:
+        # RPCError означает, что запрос дошёл до Telegram, прокси работает
+        ping = round(time.time() - start, 3)
+        return {
+            'type': 'mtproto', 'host': host, 'port': port, 'secret': secret,
+            'link': f'tg://proxy?server={host}&port={port}&secret={secret}',
+            'ping': ping, 'region': _detect_region(domain),
+            'domain': domain or '', 'method': 'Telethon_RPC',
+            'probe_resistant': False,
+        }
     except Exception as e:
         if not DEBUG_PRINTED:
             DEBUG_PRINTED = True
@@ -353,7 +362,7 @@ async def main_async(args):
     if args.api_hash: API_HASH = args.api_hash
     start = time.time()
     DEBUG_PRINTED = False
-    print('🚀 MTProxy Collector v3.8.3 (Fixed counters + secret parsing)')
+    print('🚀 MTProxy Collector v3.8.3 (Final stable)')
     print('=' * 48)
     os.makedirs(args.output_dir, exist_ok=True)
 
@@ -402,7 +411,6 @@ async def main_async(args):
                 return await check_mtproto(p, args.timeout_mt)
         tasks = [asyncio.create_task(check_one_mt(p)) for p in mtproto_list]
 
-        # ИСПРАВЛЕНО: отдельный счётчик проверенных, отдельно найденных
         checked_mt = 0
         for task in asyncio.as_completed(tasks):
             res = await task
@@ -426,7 +434,6 @@ async def main_async(args):
         with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers_socks) as ex:
             future_to_socks = {ex.submit(check_socks5_fast, h, int(p), args.timeout_socks): (h, p) for _, h, p, _ in socks5_list}
 
-            # ИСПРАВЛЕНО: отдельный счётчик проверенных, отдельно найденных
             checked_s = 0
             for future in concurrent.futures.as_completed(future_to_socks):
                 host, port = future_to_socks[future]
