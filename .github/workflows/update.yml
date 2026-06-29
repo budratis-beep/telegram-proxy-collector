@@ -2,7 +2,7 @@ name: Update Verified Proxy Lists
 
 on:
   schedule:
-    - cron: '0 */2 * * *'   # каждые 2 часа
+    - cron: '0 */2 * * *'
   workflow_dispatch:
 
 jobs:
@@ -13,11 +13,8 @@ jobs:
     - uses: actions/setup-python@v4
       with:
         python-version: '3.11'
-    - run: pip install requests telethon pyyaml
+    - run: pip install requests pyyaml
     - run: python main.py --top 100 --timeout 2.0 --workers 100
-      env:
-        MTPROXY_API_ID: ${{ secrets.MTPROXY_API_ID }}
-        MTPROXY_API_HASH: ${{ secrets.MTPROXY_API_HASH }}
     - run: |
         cp verified/proxy_ru_verified.txt proxy_ru.txt
         cp verified/proxy_eu_verified.txt proxy_eu.txt
